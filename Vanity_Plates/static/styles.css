@@ -1,0 +1,15 @@
+.plate-list {
+    margin-top: 20px;
+    padding: 10px;
+    border-top: 2px solid #ccc;
+}
+
+.plate-item {
+    display: inline-block;
+    margin: 5px;
+    padding: 8px 15px;
+    background-color: #b0e0e6;
+    border-radius: 25px;
+    font-weight: bold;
+    font-size: 16px;
+}

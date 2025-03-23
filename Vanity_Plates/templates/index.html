@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/styles.css">
+    <title>Vanity Plate Checker</title>
+    <style>
+        .success { color: green; }
+        .warning { color: orange; }
+        .error { color: red; }
+    </style>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center mb-4">Enter a Vanity Plate</h1>
+
+        {% if message %}
+            <div class="alert {% if '✅' in message %}alert-success{% elif '⚠️' in message %}alert-warning{% else %}alert-danger{% endif %}">
+                {{ message }}
+            </div>
+        {% endif %}
+
+        <form action="/" method="post" class="form-inline justify-content-center">
+            <input type="text" name="plate" class="form-control mr-2" placeholder="Enter plate" required>
+            <button type="submit" class="btn btn-primary">Submit</button>
+        </form>
+
+        <div class="plate-list mt-4">
+            <h2 class="text-center">Added Plates:</h2>
+            <div class="d-flex flex-wrap justify-content-center">
+                {% if plates %}
+                    {% for plate in plates %}
+                        <span class="plate-item badge badge-info m-2">{{ plate }}</span>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center">No plates added yet.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+</body>
+</html>
