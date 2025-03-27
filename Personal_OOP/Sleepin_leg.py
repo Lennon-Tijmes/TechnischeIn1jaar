@@ -3,7 +3,7 @@ import random
 import threading
 
 class Leg_Problem:
-    def __init__(self, sleep_time=20):
+    def __init__(self, sleep_time=30):
         self.sleep_time = sleep_time
         self.remaining_time = sleep_time
         self.start_time = time.time()
