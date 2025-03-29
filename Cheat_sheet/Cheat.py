@@ -1,6 +1,6 @@
 Data = "Hello World"
 Meow = "gibberish@meow.nl"
-Testing = "I, like. to hit Hungarians!"
+Testing = "I, like. to talk to Hungarians!"
 
 #Data = Data.split(" ") # Hello World
 Data = Data.replace("o", "a") # Hella Warld
@@ -34,7 +34,7 @@ def count_vowels(sentence):
 
 # return max(words, key=len)
 
-print(count_vowels("Sexy lady"))
+print(count_vowels("Pretty lady"))
 print(Data)
 print(Meow)
 

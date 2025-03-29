@@ -61,7 +61,7 @@ class Leg_Problem:
     def start_status_thread(self):
         def status_loop():
             while self.running:
-                time.sleep(5) # every 10 seconds
+                time.sleep(2) # when it updates
                 self.check_status()
 
         thread = threading.Thread(target=status_loop, daemon=True)

@@ -1,16 +1,14 @@
-from machine import Pin, SPI, PWM, I2C
-import utime
-from mfrc522 import MFRC522
-import ds1302  # DS1302 RTC Library
-from i2c_lcd import I2cLcd
 import time
 import socket
 import network
-import _thread
+
 
 # Wi-Fi
-SSID = "Red Milk"
-PASSWORD = "01234567"
+SSID = ""
+PASSWORD = ""
+
+#SSID = "iotroam"
+#PASSWORD = "5hVkpTfsjL" # Hardware bound You would need my Pico
 
 # DS1302 RTC (CLOCK, DATA, RS)
 rtc = ds1302.DS1302(Pin(16), Pin(17), Pin(18))
@@ -21,7 +19,8 @@ lcd = I2cLcd(i2c, 0x27, 2, 16)
 
 # people: {uid: (name, inside)}
 registered = {
-    584189687505: {"name": "Lennon", "inside": False}
+    898561148040: {"name": "Lennon", "inside": False},
+    567747976515: {"name": "Yepa", "inside": False}
 }
 
 # HTML global
@@ -42,14 +41,14 @@ buzzer2_pwm = PWM(BUZZER2)
 # Log for the webserver
 access_logs = []
 
-#=================Webserver==========#
+#=================Connecting to the interwebs==========#
 def connect_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
     wlan.connect(SSID, PASSWORD)
     while not wlan.isconnected():
         utime.sleep(1)
-    print(f"Connected to Wi-Fi: {wlan.ifconfig()[0]}")
+    print(f"Connected to Wi-Fi: http://{wlan.ifconfig()[0]}")
     return wlan
 
 #================LED=============#
@@ -125,40 +124,6 @@ def display_time():
     lcd.putstr(f"{hour:02d}:{minute:02d}:{second:02d}")
 
 #=======Logs and access========#
-def check_acss(uid):
-    date, time_str = display_time()
-    
-    if uid in registered:
-        user = registered[uid]
-        
-        if not user["inside"]:
-            status = "Inside"
-            lcd.clear()
-            print(f"Welcome {user['name']}")
-            user["inside"] = True
-            set_led(0, 1, 0)
-            lcd.putstr(f"Welcome {user['name']}")
-            play_welcome()
-        else:
-            status = "Outside"
-            lcd.clear()
-            print(f"Goodbye {user['name']}")
-            user["inside"] = False
-            set_led(1, 0, 1)
-            lcd.putstr(f"Goodbye {user['name']}")
-            play_goodbye()
-    else:
-        status = "Unauthorized"
-        lcd.clear()
-        print(f"No entry: {uid}")
-        set_led(1, 0, 0)
-        lcd.putstr("Unauthorized\n")
-        lcd.putstr(str(uid))
-        play_rejection()
-
-    access_logs.insert(0, (date, time_str, user['name'] if uid in registered else "Unknown", status))
-    utime.sleep(2)
-
 def check_access(uid):
     current_time = tag_time()
 
@@ -166,7 +131,7 @@ def check_access(uid):
         user = registered[uid]
         if "events" not in user:
             user["events"] = []  # Ensure the user has an 'events' list
-        
+
         last_status = user["events"][-1]["status"] if user["events"] else None
         new_status = "Checked Out" if last_status == "Checked In" else "Checked In"
 
@@ -183,6 +148,9 @@ def check_access(uid):
             lcd.putstr(f"Goodbye {user['name']}")
             play_goodbye()
 
+        # Add to logs
+        access_logs.append({"time": current_time, "name": user.get("name", "Unknown"), "status": new_status})
+
     else:
         set_led(1, 0, 0)
         lcd.clear()
@@ -191,14 +159,20 @@ def check_access(uid):
         lcd.putstr(str(uid))
         play_rejection()
 
+        access_logs.append({"time": current_time, "name": "Unknown", "status": "Unauthorized"})
+
+
+    global html
+    html = update_html()
+    print("HTML updated.")  # Debugging
 
 
 def update_html():
     table_rows = "".join(
-        f"<tr><td>{event['time']}</td><td>{registered[uid]['name']}</td><td>{event['status']}</td></tr>"
-        for uid in registered for event in registered[uid].get("events", [])
+        f"<tr><td>{entry['time']}</td><td>{entry['name']}</td><td>{entry['status']}</td></tr>"
+        for entry in access_logs
     )
-    
+
     html = f"""
     <!DOCTYPE html>
     <html lang="en">
@@ -212,6 +186,9 @@ def update_html():
             th, td {{ padding: 10px; border: 1px solid black; }}
             th {{ background: #ddd; }}
         </style>
+        <script>
+            setTimeout(() => location.reload(), 2000);  // Refresh every 2 seconds
+        </script>
     </head>
     <body>
         <h1>Attendance Log</h1>
@@ -226,51 +203,57 @@ def update_html():
     </body>
     </html>
     """
-    return html  # Add return statement
+    return html
 
 
 def start_webserver():
     ip = network.WLAN(network.STA_IF).ifconfig()[0]
     addr = socket.getaddrinfo(ip, 80)[0][-1]
     s = socket.socket()
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Prevents "Address already in use" error
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)  # Prevent "Address in use" error
     s.bind(addr)
     s.listen(5)
+    print(f"Web server running at http://{ip}:80")
+    return s
 
-    print(f"Web server running at {ip}:80")
 
-    while True:
-        try:
-            conn, addr = s.accept()
-            request = conn.recv(1024).decode("utf-8")
-            print(f"Received request from {addr}")  # Debugging
+def handle_connections(s):
+    global html
+    try:
+        s.settimeout(1) 
+        conn, addr = s.accept()
+        request = conn.recv(1024).decode("utf-8")
+        print(f"Received request from {addr}")
 
-            response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n" + update_html()
-            conn.sendall(response.encode())  # Ensure the response is sent completely
-        except Exception as e:
-            print(f"Error handling request: {e}")  # Print any errors
-        finally:
-            conn.close()  # Always close the connection
+        html = update_html() 
+        
+        response = "HTTP/1.1 200 OK\nContent-Type: text/html\n\n" + html
+        conn.sendall(response.encode())
+        conn.close()
+    except OSError as e:
+        if e.args[0] != 110:  # Ignore timeout errors
+            print("Socket error:", e)
+    except Exception as e:
+        print("General error:", e)
 
 
 def main():
     connect_wifi()
-    print("Updating HTML page...")
-    update_html()  # Generate the initial HTML page
+    s = start_webserver()  # Start the web server and get the socket object
     rfid = init_rfid()
+
     print("Waiting for RFID card...")
 
     while True:
-        display_time()
         set_led(0, 0, 1)
-        start_webserver()
-        uid = read_rfid(rfid)
+        handle_connections(s)  # Handle web requests
+        uid = read_rfid(rfid)  # Read RFID
+        display_time()
         if uid is not None:
             print(f"Scanned Card UID: {uid}")
             check_access(uid)
-        utime.sleep(1)
-
-        
+            html = update_html()
+        utime.sleep(1)        
         
 if __name__ == "__main__":
     main()
