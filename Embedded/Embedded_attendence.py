@@ -1,14 +1,20 @@
+from machine import Pin, SPI, PWM, I2C
+import utime
+from mfrc522 import MFRC522
+import ds1302  # DS1302 RTC Library
+from i2c_lcd import I2cLcd
 import time
 import socket
 import network
 
 
 # Wi-Fi
-SSID = ""
-PASSWORD = ""
+#SSID = ""
+#PASSWORD = ""
 
-#SSID = "iotroam"
-#PASSWORD = "5hVkpTfsjL" # Hardware bound You would need my Pico
+SSID = "iotroam"
+PASSWORD = "5hVkpTfsjL"
+# Hardware bound You would need my Pico
 
 # DS1302 RTC (CLOCK, DATA, RS)
 rtc = ds1302.DS1302(Pin(16), Pin(17), Pin(18))
